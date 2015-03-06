@@ -189,9 +189,23 @@ bool Matrix::multiply(const Matrix& m, std::unique_ptr<Matrix>& ret)
 	return true;
 }
 
-bool Matrix::findXTX(std::unique_ptr<Matrix>& ret, int multRow = 0, int multCol = 0)
+bool Matrix::findXTX(std::unique_ptr<Matrix>& ret, int multRow, int multCol)
 {
+	ret = std::unique_ptr<Matrix>(new Matrix(multRow, multRow));
+	
+	for(int i = 0;i < multRow; ++i)
+	{		
+		for(int j = 0 ; j < multRow; ++j)
+		{
+			double sum = 0;
+			for(int k = 0 ;k < multCol; k ++)
+				sum += m_mat[i][k] * m_mat[j][k];
 
+			ret->m_mat[i][j] = sum;
+		}	
+	}
+
+	return true;
 }
 
 bool Matrix::success()

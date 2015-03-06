@@ -21,12 +21,14 @@ void fread_analyse()
 	
 	//Matrix* temp = nullptr, * temp2 = nullptr;
 	std::unique_ptr<Matrix> temp, temp2;
-	mat.transposeMat(temp);
-	mat.multiply(*temp, temp2);
-	//temp->multiply(mat, temp2);
-	mat.disp();
-	temp->disp();
-	temp2->disp();
+	mat.findXTX(temp, 2, 2);
+//	mat.transposeMat(temp);
+
+//	mat.multiply(*temp, temp2);
+//	temp->multiply(mat, temp2);
+// 	mat.disp();
+ 	temp->disp();
+// 	temp2->disp();
 }
 
 int _tmain(int argc, _TCHAR* argv[])
