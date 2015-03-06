@@ -4,6 +4,21 @@
     <Filter Include="src">
       <UniqueIdentifier>{bf598ee9-4943-4ed7-aafe-6c4e2e47587c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\utils">
+      <UniqueIdentifier>{d51d9f5b-be0a-4571-859e-48ece0c01fbb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\utils\operation">
+      <UniqueIdentifier>{c93d14fe-8070-40e6-b238-352dbaae6486}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\utils\datareader">
+      <UniqueIdentifier>{4458bd31-a0a1-41d8-ad70-65dc45da2b9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\utils\trainer">
+      <UniqueIdentifier>{b8824407-92c9-4485-bdb0-c35489eff399}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\utils\tester">
+      <UniqueIdentifier>{b689e825-2a5f-4999-9dbf-65ea963a7c79}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />
@@ -15,6 +30,13 @@
     <ClInclude Include="targetver.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="matrix.h">
+      <Filter>src\utils\operation</Filter>
+    </ClInclude>
+    <ClInclude Include="datareader.h">
+      <Filter>src\utils\datareader</Filter>
+    </ClInclude>
+    <ClInclude Include="trainer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -23,5 +45,12 @@
     <ClCompile Include="main.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="matrix.cpp">
+      <Filter>src\utils\operation</Filter>
+    </ClCompile>
+    <ClCompile Include="datareader.cpp">
+      <Filter>src\utils\datareader</Filter>
+    </ClCompile>
+    <ClCompile Include="trainer.cpp" />
   </ItemGroup>
 </Project>
