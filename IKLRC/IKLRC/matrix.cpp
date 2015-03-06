@@ -36,11 +36,11 @@ Matrix::Matrix(const int& m, const int& n, std::stringstream* strStream)
 	}
 }
 
-int Matrix::getRowCout()
+int Matrix::getRowCount()
 {
 	return m_mat.size();
 }
-int Matrix::getRowCout() const
+int Matrix::getRowCount() const
 {
 	return m_mat.size();
 }
@@ -62,65 +62,75 @@ const double& Matrix::at(const int& row, const int& col) const
 	return m_mat[row][col];
 }
 
-const std::vector<double>& Matrix::atRow(const int& row)
+bool Matrix::atRow(const int& row, std::vector<double>& rowVec)
 {
-	if (row >= getRowCout())
-		return std::vector<double>();
+	if (row >= getRowCount())
+		return false;
 	
-	return m_mat[row];
+	rowVec.assign(m_mat[row].begin(), m_mat[row].end());
+	return true;
 }
-const std::vector<double>& Matrix::atRow(const int& row) const
+bool Matrix::atRow(const int& row, std::vector<double>& rowVec) const
 {
-	if (row >= getRowCout())
-		return std::vector<double>();
+	if (row >= getRowCount())
+		return false;
 
-	return m_mat[row];
+	rowVec.assign(m_mat[row].begin(), m_mat[row].end());
+	return true;
 }
 
-const std::vector<double>& Matrix::atCol(const int& col)
+bool Matrix::atCol(const int& col, std::vector<double>& colVec)
 {
 	std::vector<double> tmp;
 	if (col >= getColCount())
-		return tmp;
+		return false;
 
 	for (auto it = m_mat.begin();it != m_mat.end(); ++it)
 	{
-		tmp.emplace_back((*it)[col]);
+		colVec.emplace_back((*it)[col]);
 	}
 	
-	return tmp;
+	return true;
 }
-const std::vector<double>& Matrix::atCol(const int& col) const
+bool Matrix::atCol(const int& col, std::vector<double>& colVec) const
 {
-	std::vector<double> tmp;
 	if (col >= getColCount())
-		return tmp;
+		return false;
 
 	for (auto it = m_mat.begin();it != m_mat.end(); ++it)
 	{
-		tmp.emplace_back((*it)[col]);
+		colVec.emplace_back((*it)[col]);
 	}
 
-	return tmp;
+	return true;
 }
 
-Matrix* Matrix::transposeMat()
+void Matrix::transposeMat(std::unique_ptr<Matrix>& ret)
 {
-
-	return NULL;
-}
-
-Matrix* Matrix::add(const Matrix& m)
-{
-	int row = getRowCout();
+	int row = getRowCount();
 	int col = getColCount();
-	int row2 = m.getRowCout();
+	ret = std::unique_ptr<Matrix>(new Matrix(col, row));
+	
+	for (int i = 0;i < col; ++i)
+	{
+		for (int j = 0;j < row; ++j)
+		{
+			ret->m_mat[i][j] = m_mat[j][i];
+		}
+	}
+}
+
+bool Matrix::add(const Matrix& m, std::unique_ptr<Matrix>& ret)
+{
+	int row = getRowCount();
+	int col = getColCount();
+	int row2 = m.getRowCount();
 	int col2 = m.getColCount();
 
 	if(row != row2 || col != col2)
-		return &Matrix(0, 0);
+		return false;
 
-	std::unique_ptr<Matrix> ret = std::unique_ptr<Matrix>(new Matrix(row, col));
+	ret = std::unique_ptr<Matrix>(new Matrix(row, col));
 	
 	for(int i = 0;i < row; ++i)
 	{		
@@ -128,55 +138,60 @@ Matrix* Matrix::add(const Matrix& m)
 			m.m_mat[i].begin(), ret->m_mat[i].begin(), std::plus<double>());		
 	}
 
-	return ret.get();
+	return true;
 }
 
-Matrix* Matrix::minus(const Matrix& m)
+bool Matrix::minus(const Matrix& m, std::unique_ptr<Matrix>& ret)
 {
-	int row = getRowCout();
+	int row = getRowCount();
 	int col = getColCount();
-	int row2 = m.getRowCout();
+	int row2 = m.getRowCount();
 	int col2 = m.getColCount();
 
 	if(row != row2 || col != col2)
-		return &Matrix(0, 0);
+		return false;
 
-	m_ret = std::unique_ptr<Matrix>(new Matrix(row, col));
+	ret = std::unique_ptr<Matrix>(new Matrix(row, col));
 
 	for(int i = 0;i < row; ++i)
 	{		
 		std::transform(m_mat[i].begin(), m_mat[i].end(), 
-			m.m_mat[i].begin(), m_ret->m_mat[i].begin(), std::minus<double>());		
+			m.m_mat[i].begin(), ret->m_mat[i].begin(), std::minus<double>());		
 	}
 
-	return m_ret.get();
+	return true;
 }
 
-Matrix* Matrix::multiply(const Matrix& m)
+bool Matrix::multiply(const Matrix& m, std::unique_ptr<Matrix>& ret)
 {
-	int row = getRowCout();
+	int row = getRowCount();
 	int col = getColCount();
-	int row2 = m.getRowCout();
+	int row2 = m.getRowCount();
 	int col2 = m.getColCount();
 
 	if(col != row2)	
-		return &Matrix(0, 0);
+		return false;
 
-	m_ret = std::unique_ptr<Matrix>(new Matrix(row, col2));
+	ret = std::unique_ptr<Matrix>(new Matrix(row, col2));
 
 	for(int i = 0;i < row; ++i)
 	{		
-		for(int j = 0 ; j < col2; j ++)
+		for(int j = 0 ; j < col2; ++j)
 		{
 			double sum = 0;
 			for(int k = 0 ;k < col; k ++)
 				sum += m_mat[i][k] * m.m_mat[k][j];
 
-			m_ret->m_mat[i][j] = sum;
+			ret->m_mat[i][j] = sum;
 		}	
 	}
 
-	return m_ret.get();
+	return true;
+}
+
+bool Matrix::findXTX(std::unique_ptr<Matrix>& ret, int multRow = 0, int multCol = 0)
+{
+
 }
 
 bool Matrix::success()
@@ -186,6 +201,9 @@ bool Matrix::success()
 
 void Matrix::disp()
 {	
+	if (m_mat.size() == 0)
+		return;
+	
 	for (auto matIt = m_mat.begin();matIt != m_mat.end(); ++matIt)
 	{
 		for (auto vecIt = matIt->begin();vecIt != matIt->end(); ++vecIt)
@@ -194,4 +212,5 @@ void Matrix::disp()
 		}
 		std::cout << std::endl;
 	}
+	std::cout << std::endl;
 }

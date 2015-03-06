@@ -16,14 +16,17 @@ const std::string testPath = "StTestFile1.txt";
 void fread_analyse()
 {
 	std::stringstream ss;
-	ss << "1 2 3 4 5 6 7 8 9 9 9 9";
-	Matrix mat(3, 4, &ss);
+	ss << "1 2 3 4 5 6";
+	Matrix mat(2, 3, &ss);
 	
-	Matrix* temp = mat.add(mat);
-	Matrix* temp2 = mat.minus(mat);
+	//Matrix* temp = nullptr, * temp2 = nullptr;
+	std::unique_ptr<Matrix> temp, temp2;
+	mat.transposeMat(temp);
+	mat.multiply(*temp, temp2);
+	//temp->multiply(mat, temp2);
+	mat.disp();
 	temp->disp();
 	temp2->disp();
-	
 }
 
 int _tmain(int argc, _TCHAR* argv[])

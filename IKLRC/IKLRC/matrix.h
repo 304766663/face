@@ -11,8 +11,8 @@ public:
 
 	Matrix(const int& m, const int& n, std::stringstream* strStream);
 
-	int getRowCout();
-	int getRowCout() const;
+	int getRowCount();
+	int getRowCount() const;
 
 	int getColCount();
 	int getColCount() const;
@@ -20,25 +20,27 @@ public:
 	double& at(const int& row, const int& col);
 	const double& at(const int& row, const int& col) const;
 
-	const std::vector<double>& atRow(const int& row);
-	const std::vector<double>& atRow(const int& row) const;
+	bool atRow(const int& row, std::vector<double>& rowVec);
+	bool atRow(const int& row, std::vector<double>& rowVec) const;
 
-	const std::vector<double>& atCol(const int& row);	
-	const std::vector<double>& atCol(const int& row) const;
+	bool atCol(const int& col, std::vector<double>& colVec);	
+	bool atCol(const int& col, std::vector<double>& colVec) const;
 
-	Matrix* transposeMat();
+	void transposeMat(std::unique_ptr<Matrix>& ret);
 
-	Matrix* add(const Matrix& m);
+	bool add(const Matrix& m, std::unique_ptr<Matrix>& ret);
 
-	Matrix* minus(const Matrix& m);
+	bool minus(const Matrix& m, std::unique_ptr<Matrix>& ret);
 
-	Matrix* multiply(const Matrix& m);
+	bool multiply(const Matrix& m, std::unique_ptr<Matrix>& ret);
+
+	bool findXTX(std::unique_ptr<Matrix>& ret, int multRow = 0, int multCol = 0);
 
 	bool success();
 
 	void disp();
 
 private:
+	int m_row;
 	std::vector<std::vector<double> > m_mat;
-	std::unique_ptr<Matrix> m_ret;
 };
