@@ -5,11 +5,17 @@
 class Matrix
 {
 public:
+	Matrix();
+
 	Matrix(const int& m,const int& n);
 
 	Matrix(const int& m, const int& n, const std::vector<double>& vec);
 
-	Matrix(const int& m, const int& n, std::stringstream* strStream);
+	Matrix(const int& n, std::stringstream* strStream);
+
+	std::vector<int>& getLabelVec();
+
+	std::vector<std::vector<double>>& getMat();
 
 	int getRowCount();
 	int getRowCount() const;
@@ -26,15 +32,19 @@ public:
 	bool atCol(const int& col, std::vector<double>& colVec);	
 	bool atCol(const int& col, std::vector<double>& colVec) const;
 
+	void addRow(const std::vector<double>& rowVec);
+
 	void transposeMat(std::unique_ptr<Matrix>& ret);
 
 	bool add(const Matrix& m, std::unique_ptr<Matrix>& ret);
 
 	bool minus(const Matrix& m, std::unique_ptr<Matrix>& ret);
 
-	bool multiply(const Matrix& m, std::unique_ptr<Matrix>& ret);
+	bool multiply(const Matrix& m, std::unique_ptr<Matrix>& ret);	
 
-	bool findXTX(std::unique_ptr<Matrix>& ret, int multRow = 0, int multCol = 0);
+	int labelCount();
+
+	bool findXTX(std::unique_ptr<Matrix>& ret, int multRow, int multCol);
 
 	bool success();
 
@@ -43,4 +53,5 @@ public:
 private:
 	int m_row;
 	std::vector<std::vector<double> > m_mat;
+	std::vector<int> m_indx;
 };

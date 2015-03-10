@@ -19,7 +19,11 @@ DataReader::~DataReader(void)
 std::stringstream* DataReader::getFileData(const std::string& filePath)
 {
 	std::FILE* f = std::fopen(filePath.c_str(), "r");
-
+	if (!f)
+	{
+		std::cout << "Not such file :" << filePath << std::endl;
+		return nullptr;
+	}
 	std::vector<char> buf(MAXLEN); 
 	int size = std::fread(&buf[0], sizeof buf[0], buf.size(), f);
 

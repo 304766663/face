@@ -4,8 +4,13 @@
 
 #include <algorithm>
 #include <functional>
+#include <map>
 #include <memory>
 #include <sstream>
+
+Matrix::Matrix()
+{
+}
 
 Matrix::Matrix(const int& m, const int& n) 
 	: m_mat(m, std::vector<double>(n))
@@ -24,16 +29,38 @@ Matrix::Matrix(const int& m, const int& n, const std::vector<double>& vec)
 	}	
 }
 
-Matrix::Matrix(const int& m, const int& n, std::stringstream* strStream) 
-	: m_mat(m, std::vector<double>(n))
+Matrix::Matrix(const int& n, std::stringstream* strStream)
 {
-	for (auto matIt = m_mat.begin();matIt != m_mat.end(); ++matIt)
+	double tmp;
+	std::vector<double> tmpVec;
+	while (!strStream->eof())
 	{
-		for (auto vecIt = matIt->begin();vecIt != matIt->end(); ++vecIt)
-		{
-			(*strStream) >> (*vecIt);
-		}
+		(*strStream) >> tmp;
+		tmpVec.emplace_back(tmp);
 	}
+
+	std::multimap<int, std::vector<double>> tmpMap;
+	for (auto it = tmpVec.begin();it != tmpVec.end(); it = it + n)
+	{
+		int indx = *(it + n + 1);
+		tmpMap.emplace(std::make_pair(*(it + n + 1), std::vector<double>(it, it + n)));
+	}
+
+	for (auto it = tmpMap.begin();it != tmpMap.end(); ++it)
+	{
+		m_indx.emplace_back(it->first);
+		m_mat.emplace_back(it->second);
+	}
+}
+
+std::vector<int>& Matrix::getLabelVec()
+{
+	return m_indx;
+}
+
+std::vector<std::vector<double>>& Matrix::getMat()
+{
+	return m_mat;
 }
 
 int Matrix::getRowCount()
@@ -103,6 +130,11 @@ bool Matrix::atCol(const int& col, std::vector<double>& colVec) const
 	}
 
 	return true;
+}
+
+void Matrix::addRow(const std::vector<double>& rowVec)
+{
+	m_mat.emplace_back(std::vector<double>(rowVec.begin(), rowVec.end()));
 }
 
 void Matrix::transposeMat(std::unique_ptr<Matrix>& ret)
@@ -189,10 +221,23 @@ bool Matrix::multiply(const Matrix& m, std::unique_ptr<Matrix>& ret)
 	return true;
 }
 
+int Matrix::labelCount()
+{	
+	int count = 0;
+	int label = m_indx[0];
+	for (auto it = m_indx.begin() + 1; it != m_indx.end(); ++it)
+	{
+		if (*it == label)
+			continue;
+		else
+			count ++;
+	}
+}
+
 bool Matrix::findXTX(std::unique_ptr<Matrix>& ret, int multRow, int multCol)
 {
 	ret = std::unique_ptr<Matrix>(new Matrix(multRow, multRow));
-	
+
 	for(int i = 0;i < multRow; ++i)
 	{		
 		for(int j = 0 ; j < multRow; ++j)

@@ -36,7 +36,12 @@
     <ClInclude Include="datareader.h">
       <Filter>src\utils\datareader</Filter>
     </ClInclude>
-    <ClInclude Include="trainer.h" />
+    <ClInclude Include="trainer.h">
+      <Filter>src\utils\trainer</Filter>
+    </ClInclude>
+    <ClInclude Include="klrc.h">
+      <Filter>src\utils\tester</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -51,6 +56,11 @@
     <ClCompile Include="datareader.cpp">
       <Filter>src\utils\datareader</Filter>
     </ClCompile>
-    <ClCompile Include="trainer.cpp" />
+    <ClCompile Include="trainer.cpp">
+      <Filter>src\utils\trainer</Filter>
+    </ClCompile>
+    <ClCompile Include="klrc.cpp">
+      <Filter>src\utils\tester</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

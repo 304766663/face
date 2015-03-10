@@ -14,4 +14,3 @@ public:
 private:
 	std::shared_ptr<std::stringstream> m_fileStrStream;
 };
-
