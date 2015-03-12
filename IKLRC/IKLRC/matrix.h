@@ -9,9 +9,13 @@ public:
 
 	Matrix(const int& m,const int& n);
 
+	Matrix(const int& m,const int& n, const double& init);
+
 	Matrix(const int& m, const int& n, const std::vector<double>& vec);
 
 	Matrix(const int& n, std::stringstream* strStream);
+
+	Matrix(const Matrix& mat);
 
 	std::vector<int>& getLabelVec();
 
@@ -44,14 +48,17 @@ public:
 
 	int labelCount();
 
-	bool findXTX(std::unique_ptr<Matrix>& ret, int multRow, int multCol);
+	void clon(std::unique_ptr<Matrix>& ret);
 
+	bool inverse(std::unique_ptr<Matrix>& ret);
+
+	bool findXTX(std::unique_ptr<Matrix>& ret, int multRow, int multCol);
+	
 	bool success();
 
 	void disp();
 
 private:
-	int m_row;
 	std::vector<std::vector<double> > m_mat;
 	std::vector<int> m_indx;
 };

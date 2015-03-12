@@ -16,7 +16,7 @@ const std::string testPath = "StTestFile1.txt";
 
 void fread_analyse()
 {
-	
+	Matrix mat()
 
 }
 

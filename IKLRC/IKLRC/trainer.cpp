@@ -40,9 +40,9 @@ bool Trainer::training()
 	int trainRow = m_X_Train->getRowCount();
 	m_XTX = std::unique_ptr<Matrix>(new Matrix(trainRow, trainRow));
 	//ÕÒ³öXTX
-	for (int i = )
-	{
-	}
+// 	for (int i = )
+// 	{
+// 	}
 }
 
 void Trainer::run()

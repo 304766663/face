@@ -17,6 +17,16 @@ Matrix::Matrix(const int& m, const int& n)
 {
 }
 
+Matrix::Matrix(const int& m,const int& n, const double& init)
+	: m_mat(m, std::vector<double>(n))
+{
+	int max = (m > n)? (m): (n);
+	for (int i = 0; i < max; ++ i)
+	{
+		m_mat[i][i] = 1;
+	}
+}
+
 Matrix::Matrix(const int& m, const int& n, const std::vector<double>& vec)
 {
 	int indx = 0;
@@ -51,6 +61,12 @@ Matrix::Matrix(const int& n, std::stringstream* strStream)
 		m_indx.emplace_back(it->first);
 		m_mat.emplace_back(it->second);
 	}
+}
+
+Matrix::Matrix(const Matrix& mat)
+{
+	m_mat = mat.m_mat;
+	m_indx = mat.m_indx;
 }
 
 std::vector<int>& Matrix::getLabelVec()
@@ -232,6 +248,81 @@ int Matrix::labelCount()
 		else
 			count ++;
 	}
+}
+
+void Matrix::clon(std::unique_ptr<Matrix>& ret)
+{
+	ret = std::unique_ptr<Matrix>(new Matrix());
+	ret->m_mat = m_mat;
+	ret->m_indx = m_indx;
+}
+
+bool Matrix::inverse(std::unique_ptr<Matrix>& ret)
+{
+	int n = getRowCount();
+	if (n != getColCount())
+		return false;
+
+	std::vector<std::vector<double> > tmpMat = m_mat;	
+	ret = std::unique_ptr<Matrix>(new Matrix(n, n, 1));
+
+	int l = 0;
+	double max = 0, tmp = 0;
+	for(int k = 0; k <= n-2; ++ k)
+	{
+		max = tmpMat[k][k];
+		l = k;
+		for(int ik=k; ik <= n-1; ++ ik)//找列主元最大元素
+		{
+			if(fabs(tmpMat[ik][k]) > fabs(max))//l存储该列的最大主元素所在行
+			{
+				l = ik;
+				max = tmpMat[l][k];
+			}
+		}
+		if(l != k)//如果最大列主元元素所在行l不等于k,则换行
+		{
+			for (int repIndx = k; repIndx < n; ++ repIndx)
+			{
+				if (repIndx >= k)
+				{
+					tmp = tmpMat[k][k];
+					tmpMat[k][k] = tmpMat[l][k];
+					tmpMat[l][k] = tmp;	
+				}
+				//ret swap
+				tmp = ret->at(k, k);
+				ret->at(k, k) = ret->at(l, k);
+				ret->at(l, k) = tmp;
+			}
+		}
+		for(int i = k+1;i < n; ++ i)
+		{
+			tmp = tmpMat[i][k] / tmpMat[k][k];
+			for(int j = 0; j < n; ++ j)
+			{
+				if (j >= k)
+				{
+					tmpMat[i][j] = tmpMat[i][j] - tmp*tmpMat[k][j];
+				}
+				ret->at(i, j) -= tmp*ret->at(k, j)
+			}
+		}
+	}
+// 	for(int k = n-1; k >= 0; -- k)
+// 	{	
+// 		tmp = 0;
+// 		if(k != n-1)
+// 		{
+// 			for(int j = k+1; j <= n-1; ++ j)
+// 			{
+// 				tmp += m_mat[k][j]*m_mat[j];
+// 			}
+// 		}
+// 		q[k]=(q[k]-temp)/p[k][k];
+// 		if(fabs(q[k])<MIN)
+// 			q[k]=0;
+// 	}
 }
 
 bool Matrix::findXTX(std::unique_ptr<Matrix>& ret, int multRow, int multCol)
