@@ -48,18 +48,25 @@ Matrix::Matrix(const int& n, std::stringstream* strStream)
 		(*strStream) >> tmp;
 		tmpVec.emplace_back(tmp);
 	}
-
-	std::multimap<int, std::vector<double>> tmpMap;
-	for (auto it = tmpVec.begin();it != tmpVec.end(); it = it + n)
+	//find Index------------
+	auto it = tmpVec.begin();
+	while(it != tmpVec.end())
 	{
-		int indx = *(it + n + 1);
-		tmpMap.emplace(std::make_pair(*(it + n + 1), std::vector<double>(it, it + n)));
+		m_mat.emplace_back(std::vector<double>(it, it + n));
+		m_indx.emplace_back(*(it + n));
+		it += n + 1;
 	}
+}
 
-	for (auto it = tmpMap.begin();it != tmpMap.end(); ++it)
+Matrix::Matrix(const int& m, const int& n, std::stringstream* strStream) 
+	: m_mat(m, std::vector<double>(n))
+{
+	for (auto matIt = m_mat.begin();matIt != m_mat.end(); ++matIt)
 	{
-		m_indx.emplace_back(it->first);
-		m_mat.emplace_back(it->second);
+		for (auto vecIt = matIt->begin();vecIt != matIt->end(); ++vecIt)
+		{
+			(*strStream) >> (*vecIt);
+		}
 	}
 }
 
@@ -234,6 +241,8 @@ bool Matrix::multiply(const Matrix& m, std::unique_ptr<Matrix>& ret)
 		}	
 	}
 
+	ret->checkZero();
+
 	return true;
 }
 
@@ -248,6 +257,7 @@ int Matrix::labelCount()
 		else
 			count ++;
 	}
+	return count;
 }
 
 void Matrix::clon(std::unique_ptr<Matrix>& ret)
@@ -257,13 +267,43 @@ void Matrix::clon(std::unique_ptr<Matrix>& ret)
 	ret->m_indx = m_indx;
 }
 
+void Matrix::checkZero()
+{
+	for (auto matIt = m_mat.begin();matIt != m_mat.end(); ++matIt)
+	{
+		for (auto vecIt = matIt->begin(); vecIt != matIt->end(); ++ vecIt)
+		{
+			if (fabs(*vecIt) < 1e-6)
+			{
+				*vecIt = 0;
+			}
+		}
+	}
+}
+
+void Matrix::addSmallDia()
+{
+	int m = getRowCount();
+	int n = getColCount();
+	int max = (m > n)? (m): (n);
+	for (int i = 0; i < max; ++ i)
+	{
+		m_mat[i][i] += 1e-6;
+	}
+}
+
 bool Matrix::inverse(std::unique_ptr<Matrix>& ret)
 {
 	int n = getRowCount();
 	if (n != getColCount())
 		return false;
-
+	//add small dia
 	std::vector<std::vector<double> > tmpMat = m_mat;	
+// 	for (int i = 0;i < n; ++i)
+// 	{
+// 		tmpMat[i][i] += 1e-6;
+// 	}
+
 	ret = std::unique_ptr<Matrix>(new Matrix(n, n, 1));
 
 	int l = 0;
@@ -274,7 +314,7 @@ bool Matrix::inverse(std::unique_ptr<Matrix>& ret)
 		l = k;
 		for(int ik=k; ik <= n-1; ++ ik)//找列主元最大元素
 		{
-			if(fabs(tmpMat[ik][k]) > fabs(max))//l存储该列的最大主元素所在行
+			if(fabs(tmpMat[ik][k]) - fabs(max) > 1e-6)//l存储该列的最大主元素所在行
 			{
 				l = ik;
 				max = tmpMat[l][k];
@@ -282,51 +322,69 @@ bool Matrix::inverse(std::unique_ptr<Matrix>& ret)
 		}
 		if(l != k)//如果最大列主元元素所在行l不等于k,则换行
 		{
-			for (int repIndx = k; repIndx < n; ++ repIndx)
+			auto tmpVec = tmpMat[k];
+			tmpMat[k] = tmpMat[l];
+			tmpMat[l] = tmpVec;
+
+			//ret swap
+			for (int colIndx = 0;colIndx < n; ++ colIndx)
 			{
-				if (repIndx >= k)
-				{
-					tmp = tmpMat[k][k];
-					tmpMat[k][k] = tmpMat[l][k];
-					tmpMat[l][k] = tmp;	
-				}
-				//ret swap
-				tmp = ret->at(k, k);
-				ret->at(k, k) = ret->at(l, k);
-				ret->at(l, k) = tmp;
-			}
+				tmp = ret->at(k, colIndx);
+				ret->at(k, colIndx) = ret->at(l, colIndx);
+				ret->at(l, colIndx) = tmp;
+			}							
 		}
 		for(int i = k+1;i < n; ++ i)
 		{
 			tmp = tmpMat[i][k] / tmpMat[k][k];
 			for(int j = 0; j < n; ++ j)
 			{
+
 				if (j >= k)
 				{
 					tmpMat[i][j] = tmpMat[i][j] - tmp*tmpMat[k][j];
 				}
-				ret->at(i, j) -= tmp*ret->at(k, j)
+				ret->at(i, j) -= tmp*ret->at(k, j);
 			}
 		}
 	}
-// 	for(int k = n-1; k >= 0; -- k)
-// 	{	
-// 		tmp = 0;
-// 		if(k != n-1)
-// 		{
-// 			for(int j = k+1; j <= n-1; ++ j)
-// 			{
-// 				tmp += m_mat[k][j]*m_mat[j];
-// 			}
-// 		}
-// 		q[k]=(q[k]-temp)/p[k][k];
-// 		if(fabs(q[k])<MIN)
-// 			q[k]=0;
-// 	}
+	//回溯
+	for (int i = n-2; i >= 0; -- i)
+	{		
+		for (int j = 0;j <= i; ++ j)
+		{			
+			tmp = tmpMat[j][i + 1] / tmpMat[i + 1][i + 1];
+			for (int retIndx = 0; retIndx < n; ++ retIndx)
+			{
+				ret->at(j, retIndx) -= tmp*ret->at(i + 1, retIndx);
+			}
+			tmpMat[j][i + 1] = 0;
+		}
+		for (int j = 0;j < n; ++ j)
+		{
+			ret->at(i+1, j) /= tmpMat[i+1][i+1];	
+		}
+		tmpMat[i+1][i+1] = 1;
+	}
+	//first row 归1
+	for (int j = 0;j < n; ++ j)
+	{
+		ret->at(0, j) /= tmpMat[0][0];	
+	}
+	tmpMat[0][0] = 1;
+
+	//极小数视为0
+	//ret->checkZero();
+	return true;
 }
 
 bool Matrix::findXTX(std::unique_ptr<Matrix>& ret, int multRow, int multCol)
 {
+	if (multRow == 0 || multCol == 0)
+	{
+		multRow = getRowCount();
+		multCol = getColCount();
+	}
 	ret = std::unique_ptr<Matrix>(new Matrix(multRow, multRow));
 
 	for(int i = 0;i < multRow; ++i)

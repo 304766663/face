@@ -15,6 +15,8 @@ public:
 
 	Matrix(const int& n, std::stringstream* strStream);
 
+	Matrix(const int& m, const int& n, std::stringstream* strStream);
+
 	Matrix(const Matrix& mat);
 
 	std::vector<int>& getLabelVec();
@@ -50,9 +52,13 @@ public:
 
 	void clon(std::unique_ptr<Matrix>& ret);
 
+	void checkZero();
+	
+	void addSmallDia();
+
 	bool inverse(std::unique_ptr<Matrix>& ret);
 
-	bool findXTX(std::unique_ptr<Matrix>& ret, int multRow, int multCol);
+	bool findXTX(std::unique_ptr<Matrix>& ret, int multRow = 0, int multCol = 0);
 	
 	bool success();
 

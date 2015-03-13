@@ -7,6 +7,7 @@
 #include <vector>
 #include "matrix.h"
 #include <map>
+#include "trainer.h"
 
 const int MAXN = 10000;
 const long MAXS = 6*1024*1024;
@@ -16,8 +17,16 @@ const std::string testPath = "StTestFile1.txt";
 
 void fread_analyse()
 {
-	Matrix mat()
-
+	std::stringstream ss;
+	ss << "3 2 7 9 6 1 5 5 3 5		3 1 5 3 7		5 6 7 8 3		1 1 8 9 2";
+	Matrix mat(5,5,&ss);
+	mat.disp();
+	std::unique_ptr<Matrix> m;
+	mat.inverse(m);
+	m->disp();
+ 	std::unique_ptr<Matrix> ret;
+ 	mat.multiply(*m, ret);
+ 	ret->disp();
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -33,6 +42,9 @@ int _tmain(int argc, _TCHAR* argv[])
 // 	}
 
 	fread_analyse();
+	//Trainer tr(0, "");
+	//tr.run();
+
 	return 0;
 }
 
