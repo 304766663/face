@@ -13,11 +13,11 @@
     <Filter Include="src\utils\datareader">
       <UniqueIdentifier>{4458bd31-a0a1-41d8-ad70-65dc45da2b9d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\utils\trainer">
-      <UniqueIdentifier>{b8824407-92c9-4485-bdb0-c35489eff399}</UniqueIdentifier>
+    <Filter Include="src\algorithm">
+      <UniqueIdentifier>{3fc7def9-4538-43aa-a789-b7921a735402}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\utils\tester">
-      <UniqueIdentifier>{b689e825-2a5f-4999-9dbf-65ea963a7c79}</UniqueIdentifier>
+    <Filter Include="src\trainer">
+      <UniqueIdentifier>{b8824407-92c9-4485-bdb0-c35489eff399}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -37,10 +37,10 @@
       <Filter>src\utils\datareader</Filter>
     </ClInclude>
     <ClInclude Include="trainer.h">
-      <Filter>src\utils\trainer</Filter>
+      <Filter>src\trainer</Filter>
     </ClInclude>
     <ClInclude Include="klrc.h">
-      <Filter>src\utils\tester</Filter>
+      <Filter>src\algorithm</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -57,10 +57,10 @@
       <Filter>src\utils\datareader</Filter>
     </ClCompile>
     <ClCompile Include="trainer.cpp">
-      <Filter>src\utils\trainer</Filter>
+      <Filter>src\trainer</Filter>
     </ClCompile>
     <ClCompile Include="klrc.cpp">
-      <Filter>src\utils\tester</Filter>
+      <Filter>src\algorithm</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

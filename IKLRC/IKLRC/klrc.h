@@ -1,8 +1,23 @@
 #pragma once
-class klrc
+
+#include <memory>
+
+class Matrix;
+class Trainer;
+class KLRC
 {
 public:
-	klrc(void);
-	~klrc(void);
+	KLRC(void);
+	~KLRC(void);
+	
+	void readTestDatas(const std::string& filePath, const int& dimension);
+	void run();
+
+private:
+	void prepareToTest(const int& label);
+	int figureLabel(Matrix* Y);
+	//std::unique_ptr<Matrix> m_Test_All;
+	Matrix* m_Test_All;
+	std::unique_ptr<Trainer> m_trainer;
 };
 

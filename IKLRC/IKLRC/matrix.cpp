@@ -9,16 +9,19 @@
 #include <sstream>
 
 Matrix::Matrix()
+	: m_isInverse(false)
 {
 }
 
 Matrix::Matrix(const int& m, const int& n) 
-	: m_mat(m, std::vector<double>(n))
+	: m_isInverse(false)
+	, m_mat(m, std::vector<double>(n))
 {
 }
 
-Matrix::Matrix(const int& m,const int& n, const double& init)
-	: m_mat(m, std::vector<double>(n))
+Matrix::Matrix(const int& m, const int& n, const double& init)
+	: m_isInverse(false)
+	, m_mat(m, std::vector<double>(n))
 {
 	int max = (m > n)? (m): (n);
 	for (int i = 0; i < max; ++ i)
@@ -27,7 +30,17 @@ Matrix::Matrix(const int& m,const int& n, const double& init)
 	}
 }
 
+Matrix::Matrix(const int& n, const std::vector<double>& vec)
+	: m_isInverse(false)
+{
+	for (auto it = vec.begin();it != vec.end(); it = it + n)
+	{
+		m_mat.emplace_back(std::vector<double>(it, it + n));
+	}	
+}
+
 Matrix::Matrix(const int& m, const int& n, const std::vector<double>& vec)
+	: m_isInverse(false)
 {
 	int indx = 0;
 	for (auto it = vec.begin();it != vec.end(); it = it + n)
@@ -40,26 +53,38 @@ Matrix::Matrix(const int& m, const int& n, const std::vector<double>& vec)
 }
 
 Matrix::Matrix(const int& n, std::stringstream* strStream)
+	: m_isInverse(false)
 {
 	double tmp;
 	std::vector<double> tmpVec;
+
 	while (!strStream->eof())
 	{
 		(*strStream) >> tmp;
 		tmpVec.emplace_back(tmp);
 	}
+
+	int rest = tmpVec.size() % (n + 1);
+	while (rest -- > 0)
+	{
+		tmpVec.pop_back();
+	}
 	//find Index------------
 	auto it = tmpVec.begin();
+	std::set<int> tmpSet;
 	while(it != tmpVec.end())
 	{
 		m_mat.emplace_back(std::vector<double>(it, it + n));
 		m_indx.emplace_back(*(it + n));
+		tmpSet.insert(*(it + n));
 		it += n + 1;
 	}
+	m_label.assign(tmpSet.begin(), tmpSet.end());
 }
 
 Matrix::Matrix(const int& m, const int& n, std::stringstream* strStream) 
-	: m_mat(m, std::vector<double>(n))
+	: m_isInverse(false)
+	, m_mat(m, std::vector<double>(n))
 {
 	for (auto matIt = m_mat.begin();matIt != m_mat.end(); ++matIt)
 	{
@@ -71,14 +96,25 @@ Matrix::Matrix(const int& m, const int& n, std::stringstream* strStream)
 }
 
 Matrix::Matrix(const Matrix& mat)
+	: m_isInverse(false)
 {
 	m_mat = mat.m_mat;
 	m_indx = mat.m_indx;
 }
 
-std::vector<int>& Matrix::getLabelVec()
+bool& Matrix::getInverseAttr()
+{
+	return m_isInverse;
+}
+
+std::vector<int>& Matrix::getIndxVec()
 {
 	return m_indx;
+}
+
+std::vector<int>& Matrix::getLabelVec()
+{
+	return m_label;
 }
 
 std::vector<std::vector<double>>& Matrix::getMat()
@@ -88,46 +124,89 @@ std::vector<std::vector<double>>& Matrix::getMat()
 
 int Matrix::getRowCount()
 {
-	return m_mat.size();
+	if (m_isInverse)
+	{
+		return m_mat[0].size();
+	}
+	else
+	{
+		return m_mat.size();
+	}	
 }
 int Matrix::getRowCount() const
 {
-	return m_mat.size();
+	if (m_isInverse)
+	{
+		return m_mat[0].size();
+	}
+	else
+	{
+		return m_mat.size();
+	}	
 }
 int Matrix::getColCount()
 {
-	return m_mat[0].size();
+	if (m_isInverse)
+	{
+		return m_mat.size();
+	}
+	else
+	{
+		return m_mat[0].size();
+	}	
 }
 int Matrix::getColCount() const
 {
-	return m_mat[0].size();
+	if (m_isInverse)
+	{
+		return m_mat.size();
+	}
+	else
+	{
+		return m_mat[0].size();
+	}	
 }
 
 double& Matrix::at(const int& row, const int& col)
 {
-	return m_mat[row][col];
+	if (m_isInverse)
+	{
+		return m_mat[col][row];
+	}
+	else
+	{
+		return m_mat[row][col];
+	}	
 }
 const double& Matrix::at(const int& row, const int& col) const
 {
-	return m_mat[row][col];
+	if (m_isInverse)
+	{
+		return m_mat[col][row];
+	}
+	else
+	{
+		return m_mat[row][col];
+	}	
 }
 
-bool Matrix::atRow(const int& row, std::vector<double>& rowVec)
+bool Matrix::atRow(const int& row, std::unique_ptr<Matrix>& ret)
 {
 	if (row >= getRowCount())
 		return false;
 	
-	rowVec.assign(m_mat[row].begin(), m_mat[row].end());
+	ret = std::unique_ptr<Matrix>(new Matrix(1, m_mat[row]));
+//	rowVec.assign(m_mat[row].begin(), m_mat[row].end());
 	return true;
 }
-bool Matrix::atRow(const int& row, std::vector<double>& rowVec) const
-{
-	if (row >= getRowCount())
-		return false;
-
-	rowVec.assign(m_mat[row].begin(), m_mat[row].end());
-	return true;
-}
+// bool Matrix::atRow(const int& row, std::vector<double>& rowVec) const
+// {
+// 	if (row >= getRowCount())
+// 		return false;
+// 
+// 	rowVec.assign(m_mat[row].begin(), m_mat[row].end());
+// 	return true;
+// }
 
 bool Matrix::atCol(const int& col, std::vector<double>& colVec)
 {
@@ -153,6 +232,11 @@ bool Matrix::atCol(const int& col, std::vector<double>& colVec) const
 	}
 
 	return true;
+}
+
+void Matrix::addIndx(const int& indx)
+{
+	m_indx.push_back(indx);
 }
 
 void Matrix::addRow(const std::vector<double>& rowVec)
@@ -217,8 +301,15 @@ bool Matrix::minus(const Matrix& m, std::unique_ptr<Matrix>& ret)
 	return true;
 }
 
-bool Matrix::multiply(const Matrix& m, std::unique_ptr<Matrix>& ret)
+bool Matrix::multiply(Matrix& m, std::unique_ptr<Matrix>& ret, 
+	const bool& m1IsInverse, const bool& m2IsInverse)
 {
+	bool isInverse1 = m_isInverse;
+	bool isInverse2 = m.m_isInverse;
+	
+	m_isInverse = m1IsInverse;
+	m.getInverseAttr() = m2IsInverse;
+
 	int row = getRowCount();
 	int col = getColCount();
 	int row2 = m.getRowCount();
@@ -235,7 +326,7 @@ bool Matrix::multiply(const Matrix& m, std::unique_ptr<Matrix>& ret)
 		{
 			double sum = 0;
 			for(int k = 0 ;k < col; k ++)
-				sum += m_mat[i][k] * m.m_mat[k][j];
+				sum += at(i, k) * m.at(k, j);
 
 			ret->m_mat[i][j] = sum;
 		}	
@@ -243,21 +334,15 @@ bool Matrix::multiply(const Matrix& m, std::unique_ptr<Matrix>& ret)
 
 	ret->checkZero();
 
+	m_isInverse = isInverse1;
+	m.getInverseAttr() = isInverse2;
+
 	return true;
 }
 
 int Matrix::labelCount()
-{	
-	int count = 0;
-	int label = m_indx[0];
-	for (auto it = m_indx.begin() + 1; it != m_indx.end(); ++it)
-	{
-		if (*it == label)
-			continue;
-		else
-			count ++;
-	}
-	return count;
+{		
+	return m_label.size();
 }
 
 void Matrix::clon(std::unique_ptr<Matrix>& ret)
@@ -279,6 +364,16 @@ void Matrix::checkZero()
 			}
 		}
 	}
+}
+
+double Matrix::sumUp()
+{
+	double sum = 0;
+	for (auto it = m_mat[0].begin(); it != m_mat[0].end(); ++ it)
+	{
+		sum += (*it)*(*it);
+	}
+	return sum;
 }
 
 void Matrix::addSmallDia()
@@ -385,6 +480,14 @@ bool Matrix::findXTX(std::unique_ptr<Matrix>& ret, int multRow, int multCol)
 		multRow = getRowCount();
 		multCol = getColCount();
 	}
+
+	if (m_isInverse)
+	{
+		int tmp = multCol;
+		multCol = multRow;
+		multRow = tmp;
+	}
+
 	ret = std::unique_ptr<Matrix>(new Matrix(multRow, multRow));
 
 	for(int i = 0;i < multRow; ++i)
