@@ -20,27 +20,30 @@ int DataNumTrainTotal;//训练样本总数
 int DataNumTestTotal;//测试样本总数
 int DataNumTrain; 
 int ReadNum;
-int select;
 int FileIndx;
-double r;//胡贝尔参数
+//double r;//胡贝尔参数
 double **Train_X_All;  //训练样本点
 double *Train_Y_All;   //训练点
 double **Test_X_All;     //测试样本点
 double *Test_Y_All;      //测试样本点
 double **Train_X;
 double *Label;        //样本对应标号集
-double *W;
+//double *W;
 double *B;
-double *B1;
+//double *B1;
 int LabelNum;
 double RightCount;//正确分类测试点个数
 double RightRate;//分类正确率
 double dmin;//最小距离
 int Labelmin;//存储与测试点最近的类的标注
 double e;//迭代算法终止误差
-double temp;//中间变量
-double **tmp1;//中间指针
-double **tmp2;
+// double temp;//中间变量
+// double **tmp1;//中间指针
+// double **tmp2;
+double **XTX;
+double **XTXInverse;
+double *XTY;
+double *Y;
 double end_time;
 double begin_time;
 double ptime;
@@ -292,12 +295,6 @@ int LabelCount(int n)
 	return num;
 }
 
-void ReleaseTempSpace(double **p,int n)//释放空间
-{
-	for(int i=0;i<n;i++)
-		delete p[i];
-	delete []p;
-}
 
 void GenerateDataForTraining(int label)
 {
@@ -322,13 +319,7 @@ double Distance(double *u,double *v,int n)
 		sum+=(u[i]-v[i])*(u[i]-v[i]);
 	return sum;
 }
-void ReleaseSpace()//释放临时空间
-{
-	ReleaseTempSpace(tmp1,DataNumTrain);
-	ReleaseTempSpace(tmp2,DataNumTrain);
-	delete []B1;
-	delete []B;
-}
+
 //解方程组的列主元Gauss消去法
 void Gauss(double **p,double *q,int n)
 {
@@ -379,23 +370,220 @@ void Gauss(double **p,double *q,int n)
 			q[k]=0;
 	}
 }
-void VariableInit()
+void VarInit()
 {
-	int j;
-	B=new double[DataNumTrain];
-	B1=new double[DataNumTrain];
-	tmp1=new double*[DataNumTrain];			
-	tmp2=new double*[DataNumTrain];	
-	for(j=0;j<DataNumTrain;j++)
+	//XTXInverse m m
+	//XTY        m 1
+	//B			 m 1
+	//Y			 n 1
+	Y = new double[Dimension];
+	B = new double[DataNumTrain];
+	XTY = new double[DataNumTrain];
+	XTX = new double*[DataNumTrain];	
+	XTXInverse = new double*[DataNumTrain];	
+	for(int j = 0;j < DataNumTrain; ++j)
 	{
-		tmp1[j]=new double[Dimension];
-		tmp2[j]=new double[DataNumTrain];
-		B[j]=1;
+		XTX[j] = new double[DataNumTrain];
+		XTXInverse[j] = new double[DataNumTrain];
 	}		
 }
+void ReleaseTempSpace(double **p,int n)//释放空间
+{
+	for(int i = 0;i < n;++ i)
+		delete p[i];
+	delete []p;
+}
+void VarRelease()//释放临时空间
+{
+	ReleaseTempSpace(XTXInverse, DataNumTrain);
+	delete []B;
+	delete []Y;
+	delete []XTY;
+}
+void multiplyXY(double **p, double **q, int m, int n, int l, double** ret)
+{
+	int i, j, k;
+	double sum;
+	//multiply
+	for(i = 0;i < m; ++i)
+	{		
+		for(j = 0 ; j < l; ++j)
+		{
+			sum = 0;
+			for(k = 0 ;k < n; k ++)
+				sum += p[i][k] * q[k][j];
+
+			ret[i][j] = (fabs(sum)<MIN)? 0: sum;
+		}	
+	}
+}
+
+void multiplyXTY(double **p, double **q, int m, int n, int l, double** ret)
+{
+	int i, j, k;
+	double sum;
+	//multiply
+	for(i = 0;i < m; ++i)
+	{		
+		for(j = 0 ; j < l; ++j)
+		{
+			sum = 0;
+			for(k = 0 ;k < n; k ++)
+				sum += p[k][i] * q[k][j];
+
+			ret[i][j] = (fabs(sum)<MIN)? 0: sum;
+		}	
+	}
+}
+
+void multiplyXYv(double **p, double *q, int m, int n, double* ret)
+{
+	int i, k;
+	double sum;
+	//multiply
+	for(i = 0;i < m; ++i)
+	{		
+		sum = 0;
+		for(k = 0 ;k < n; k ++)
+			sum += p[i][k] * q[k];
+
+		ret[i] = (fabs(sum)<MIN)? 0: sum;		
+	}
+}
+
+void multiplyXTYv(double **p, double *q, int m, int n, double* ret)
+{
+	int i, k;
+	double sum;
+	//multiply
+	for(i = 0;i < m; ++i)
+	{		
+		sum = 0;
+		for(k = 0 ;k < n; k ++)
+			sum += p[k][i] * q[k];
+
+		ret[i] = (fabs(sum)<MIN)? 0: sum;		
+	}
+}
+
+void multiplyXXT(double **p, int m, int n, double** ret)
+{
+	int i, j, k;
+	double sum;
+	//multiply
+	for(i = 0;i < m; ++i)
+	{		
+		for(j = 0 ; j < m; ++j)
+		{
+			sum = 0;
+			for(k = 0 ;k < n; k ++)
+				sum += p[i][k] * p[j][k];
+
+			ret[i][j] = (fabs(sum)<MIN)? 0: sum;
+		}	
+	}
+}
+
+void inverse(double **p, int n, double **q)
+{
+	int i, j, k, l, ik;
+	double max, tmpM;
+	double *tmpR;
+	double **tmpMat = new double *[n];
+	for (i = 0;i < n; ++i)
+	{
+		tmpMat[i] = new double[n];
+		for (j = 0;j < n; ++j)
+		{
+			q[i][j] = 0;
+			tmpMat[i][j] = p[i][j];
+			if (i == j)
+			{
+				tmpMat[i][j] += MIN;
+				q[i][j] = 1;
+			}
+		}
+	}
+
+	for(k = 0; k <= n-2; ++ k)
+	{
+		max = tmpMat[k][k];
+		l = k;
+		for(ik = k; ik <= n-1; ++ ik)//找列主元最大元素
+		{
+			if(fabs(tmpMat[ik][k]) - fabs(max) > 1e-6)//l存储该列的最大主元素所在行
+			{
+				l = ik;
+				max = tmpMat[l][k];
+			}
+		}
+		if(l != k)//如果最大列主元元素所在行l不等于k,则换行
+		{
+			tmpR = tmpMat[l];
+			tmpMat[l] = tmpMat[k];
+			tmpMat[k] = tmpR;//这三行代码是用来交换矩阵的ik行与k行,即交换指针
+			
+			tmpR = q[l];
+			q[l] = q[k];
+			q[k] = tmpR;//交换右端向量				
+		}
+		for(i = k+1;i < n; ++ i)
+		{
+			tmpM = tmpMat[i][k] / tmpMat[k][k];
+			for(j = 0; j < n; ++ j)
+			{
+				if (j >= k)
+				{
+					tmpMat[i][j] = tmpMat[i][j] - tmpM*tmpMat[k][j];
+				}
+				q[i][j] -= tmpM*q[k][j];
+			}
+		}
+	}
+	//回溯
+	for (i = n-2; i >= 0; -- i)
+	{		
+		for (j = 0;j <= i; ++ j)
+		{			
+			tmpM = tmpMat[j][i + 1] / tmpMat[i + 1][i + 1];
+			for (int retIndx = 0; retIndx < n; ++ retIndx)
+			{
+				q[j][retIndx] -= tmpM*q[i + 1][retIndx];
+			}
+			tmpMat[j][i + 1] = 0;
+		}
+		for (int j = 0;j < n; ++ j)
+		{
+			q[i+1][j] /= tmpMat[i+1][i+1];	
+		}
+		tmpMat[i+1][i+1] = 1;
+	}
+	//first row 归1
+	for (int j = 0;j < n; ++ j)
+	{
+		q[0][j] /= tmpMat[0][0];	
+	}
+	tmpMat[0][0] = 1;
+}
+
+void dispMat(double **p, int m, int n)
+{
+	for (int i = 0;i < m; ++i)
+	{
+		for (int j = 0;j < m; ++j)
+		{
+			cout << p[i][j] <<" ";
+		}
+		cout << endl;
+	}
+	cout << endl;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
-	int i,j,k,l,m,t;
+
+	////////////////
+	int i,k;
 	double average;
 	double atime;
 	char TrainFileName[100],TestFileName[100];
@@ -413,8 +601,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	for(int h=0;h<1;h++)
 	{
-		for(select=2; select < 3; select++)
-		{	
+// 		for(select=2; select < 3; select++)
+// 		{	
 			average=0;
 			atime=0;
 			for(FileIndx = 1;FileIndx <= 10;++ FileIndx)
@@ -431,76 +619,32 @@ int _tmain(int argc, _TCHAR* argv[])
 				filenametest = TestFileName; 
 				GetNumAndDataTrain GetTrain;
 				GetNumAndDataTest GetTest;
-				ReadData(GetTrain,GetTest);
+				ReadData(GetTrain, GetTest);
 				RightCount = 0;
-				W = new double[Dimension];
 				begin_time=clock();           //时间起点
-				for(k=0;k<DataNumTestTotal;k++)//对每个测试点进行分类
+				for(k = 0;k < DataNumTestTotal;++ k)//对每个测试点进行分类
 				{
-					dmin=6000000;//存储测试点与每个类的最小距离
-					for(i=0;i<LabelNum;i++)//计算每个类与测试点的距离
+					dmin = 1e20;//存储测试点与每个类的最小距离
+					for(i = 0;i < LabelNum; ++i)//计算每个类与测试点的距离
 					{	
-						DataNumTrain=LabelCount(Label[i]);//计算Label[i]类的训练对象个数
-						VariableInit();//局部变量的初始化
+						DataNumTrain = LabelCount(Label[i]);//计算Label[i]类的训练对象个数
+						VarInit();//局部变量的初始化
 						GenerateDataForTraining(Label[i]);//获得Label[i]类的训练对象		
-						//用迭代加权最小二乘法求解Bi
-						m=0;
-						while(1)
+						//求XTX
+						multiplyXXT(Train_X, DataNumTrain, Dimension, XTX);
+						inverse(XTX, DataNumTrain, XTXInverse);
+						//dispMat(XTXInverse, DataNumTrain, DataNumTrain);
+						multiplyXYv(Train_X, Test_X_All[k], DataNumTrain, Dimension, XTY);
+						multiplyXYv(XTXInverse, XTY, DataNumTrain, DataNumTrain, B);
+						multiplyXTYv(Train_X, B, Dimension, DataNumTrain, Y);
+
+						e = Distance(Y, Test_X_All[k], Dimension);//计算e=||y-y'||
+						if(e - dmin < MIN)
 						{
-							m++;
-							for(j=0;j<Dimension;j++)//计算出W矩阵
-							{
-								temp=0;
-								for(l=0;l<DataNumTrain;l++)
-								{
-									temp+=B[l]*Train_X[l][j];
-								}
-								temp=Test_X_All[k][j]-temp;//计算残差
-								W[j]=w(temp);//计算权函数
-							}
-							for(j=0;j<DataNumTrain;j++)//计算tmp1=X'W
-								for(l=0;l<Dimension;l++)
-								{
-									tmp1[j][l]=Train_X[j][l]*W[l];
-								}
-								for(j=0;j<DataNumTrain;j++)//计算tmp2=tmp1*X=X'WX
-								{
-									for(l=0;l<DataNumTrain;l++)
-									{
-										temp=0;
-										for(t=0;t<Dimension;t++)
-											temp+=tmp1[j][t]*Train_X[l][t];
-										tmp2[j][l]=temp;
-									}
-								}
-								for(j=0;j<DataNumTrain;j++)//计算B1=X'Wy
-								{
-									temp=0;
-									for(l=0;l<Dimension;l++)
-										temp+=tmp1[j][l]*Test_X_All[k][l];
-									B1[j]=temp;
-								}
-								Gauss(tmp2,B1,DataNumTrain);
-								e=Distance(B,B1,DataNumTrain);//计算两次迭代结果误差
-								for(j=0;j<DataNumTrain;j++)
-									B[j]=B1[j];
-								if(e<MIN)
-									break;
-						}//end while
-						for(j=0;j<Dimension;j++)//计算y'=XB'存在W中
-						{
-							temp=0;
-							for(l=0;l<DataNumTrain;l++)
-								temp+=Train_X[l][j]*B[l];
-							W[j]=temp;
+							Labelmin = Label[i];//记录最近距离类下标
+							dmin = e;
 						}
-						e=Distance(W,Test_X_All[k],Dimension);//计算e=||y-y'||
-						if(e<dmin)
-						{
-							Labelmin=Label[i];//记录最近距离类下标
-							dmin=e;
-						}
-						ReleaseSpace();//释放临时空间
+						VarRelease();//释放临时空间
 					}//已计算出与该测试点最近的类
 					if(Labelmin==Test_Y_All[k])
 						RightCount++;//计算正确分类频数
@@ -513,10 +657,134 @@ int _tmain(int argc, _TCHAR* argv[])
 				GetTest.ReleaseTestSpace();//释放测试空间
 				average+=RightRate;
 				atime+=ptime;
-			}//end CrossValidationTime
-			outfile<<"    "<<select<<"    "<<average/10<<"    "<<atime/10<<endl;
-		}//end select
+			}//end FileIndx
+			outfile<<"    "<<average/10<<"    "<<atime/10<<endl;
+//		}//end select
 	}
 	outfile.close();
 	return 1;
 }//end main
+
+
+/*
+
+double **p = new double *[3];
+for (int i = 0;i < 3; ++i)
+{
+p[i] = new double[4];
+for (int j = 0;j < 4; ++j)
+{
+p[i][j] = i * j + 1;
+}
+}
+for (int i = 0;i < 3; ++i)
+{
+for (int j = 0;j < 4; ++j)
+{
+cout << p[i][j] << " ";
+}
+cout <<endl;
+}
+
+tmp1 = new double *[3];
+for (int i = 0;i < 3; ++i)
+{
+tmp1[i] = new double[3];
+}
+
+multiplyXXT(p, 3, 4, tmp1);
+for (int i = 0;i < 3; ++i)
+{
+for (int j = 0;j < 3; ++j)
+{
+cout << tmp1[i][j] << " ";
+}
+cout <<endl;
+}
+
+tmp2 = new double *[3];
+for (int i =0;i < 3; ++i)
+{
+tmp2[i] = new double[4];
+}
+multiplyXY(tmp1, p, 3, 3, 4, tmp2);
+for (int i = 0;i < 3; ++i)
+{
+for (int j = 0;j < 4; ++j)
+{
+cout << tmp2[i][j] << " ";
+}
+cout <<endl;
+}
+}*/
+
+/*
+double **A;
+double **B;
+double*d;
+double c
+double *dAn_;
+double *An_dT;
+double dAn_dT
+d = new double[DataNumTrain];
+An_dT = new double[DataNumTrain];
+A = new double*[DataNumTrain];
+B = new double*[DataNumTrain];
+for(int i = 0;i < DataNumTrain; ++i)
+{
+A[i] = new double[DataNumTrain];
+B[i] = new double[DataNumTrain];
+}
+
+int m;
+int n;
+
+void iTrain(double* x)
+{	
+multiplyXYv(Train_X, n, Dim, x, d);
+multiplyXvYv(x, x, DataNumTrain, c);
+//代公式
+multiplyXvY(d, A, n, n, dAn_);
+multiplyXYv(A, d, n, n, An_dT);
+multiplyXvYv(d, An_dT, n, dAn_dT);
+
+multiplyXY(dAn_, An_dT, n, 1, n, B);
+
+//complete B
+double sum;
+int i,j;
+for(i = 0;i < n; ++i)
+{
+sum = 0;
+for(j = 0;j < n; ++j)
+{
+sum += d[j]*A[j][i];
+}
+B[n][i] = -sum;
+
+sum = 0;
+for(j = 0;j < n; ++j)
+{
+sum += d[j]*A[i][j];
+}
+B[i][n] = -sum;
+}
+B[n][n] = 1;
+
+multiplyNX((c - dAn_dT), B);
+add(A, B, n+1, n+1, A);
+}
+
+void train()
+{	
+multiplyXTX(Train_X, 1, DataNumTrain, A);
+A[0][0] = 1/A[0][0];
+m = DataNumTrain;
+n = 1;	
+for(int i = 0;i < DataNumTrain; ++i)
+{
+iTrain(Train_X[i]);
+}	
+}
+
+*/
