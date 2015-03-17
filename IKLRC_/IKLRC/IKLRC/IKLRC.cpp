@@ -9,9 +9,14 @@
 #include<string>
 #include<ctime>
 #include<fstream>
-#define Dimension 32*32  //数据维数(不包括y)
+#define Dimension 64*64//32*32  //数据维数(不包括y)
 #define MIN 1.0e-06
 using namespace std;
+
+enum TestType{
+	Normal, 
+	Increase
+};
 
 string filenametrain="Train.txt"; //训练点数据文件名
 string filenametest="Test.txt";//测试点数据文件名
@@ -29,7 +34,7 @@ double *Test_Y_All;      //测试样本点
 double **Train_X;
 double *Label;        //样本对应标号集
 //double *W;
-double *B;
+double *Beta;
 //double *B1;
 int LabelNum;
 double RightCount;//正确分类测试点个数
@@ -47,6 +52,16 @@ double *Y;
 double end_time;
 double begin_time;
 double ptime;
+
+//增量学习
+double **B;
+double*d;
+double c;
+double *dAn_;
+double *An_dT;
+double dAn_dT;
+
+TestType testType = Increase;
 
 ////////////////////////////////////////////////////////////////////////////////////
 //用于读取训练点数据类
@@ -242,6 +257,20 @@ void GetNumAndDataTest::ReleaseTestSpace()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
+void dispMat(double **p, int m, int n)
+{
+	for (int i = 0;i < m; ++i)
+	{
+		for (int j = 0;j < m; ++j)
+		{
+			cout << p[i][j] <<" ";
+		}
+		cout << endl;
+	}
+	cout << endl;
+}
+
+
 
 void GetLabelOrdered()//插入排序算法,计算出训练文件有多少类别
 {
@@ -372,20 +401,53 @@ void Gauss(double **p,double *q,int n)
 }
 void VarInit()
 {
-	//XTXInverse m m
-	//XTY        m 1
-	//B			 m 1
-	//Y			 n 1
 	Y = new double[Dimension];
-	B = new double[DataNumTrain];
+	Beta = new double[DataNumTrain];
 	XTY = new double[DataNumTrain];
-	XTX = new double*[DataNumTrain];	
-	XTXInverse = new double*[DataNumTrain];	
-	for(int j = 0;j < DataNumTrain; ++j)
+
+	int i, j;
+	switch(testType)
 	{
-		XTX[j] = new double[DataNumTrain];
-		XTXInverse[j] = new double[DataNumTrain];
-	}		
+	case Normal:
+		{
+			//XTXInverse m m
+			//XTY        m 1
+			//B			 m 1
+			//Y			 n 1			
+			XTX = new double*[DataNumTrain];	
+			XTXInverse = new double*[DataNumTrain];	
+			for(i = 0;i < DataNumTrain; ++i)
+			{
+				XTX[i] = new double[DataNumTrain];
+				XTXInverse[i] = new double[DataNumTrain];
+			}
+			break;
+		}
+	case Increase:
+		{
+			d = new double[DataNumTrain];
+			dAn_ = new double[DataNumTrain];
+			An_dT = new double[DataNumTrain];			
+			
+			B = new double*[DataNumTrain];
+			XTXInverse = new double*[DataNumTrain];			
+			for(i = 0;i < DataNumTrain; ++i)
+			{
+				d[i] = 0;
+				dAn_[i] = 0;
+				An_dT[i] = 0;
+
+				B[i] = new double[DataNumTrain];
+				XTXInverse[i] = new double[DataNumTrain];				
+				for (j = 0; j < DataNumTrain; ++j)
+				{
+					XTXInverse[i][j] = 0;
+					B[i][j] = 0;
+				}
+			}
+			break;
+		}
+	}	
 }
 void ReleaseTempSpace(double **p,int n)//释放空间
 {
@@ -395,12 +457,42 @@ void ReleaseTempSpace(double **p,int n)//释放空间
 }
 void VarRelease()//释放临时空间
 {
-	ReleaseTempSpace(XTXInverse, DataNumTrain);
-	delete []B;
+	delete []Beta;
 	delete []Y;
 	delete []XTY;
+	ReleaseTempSpace(XTXInverse, DataNumTrain);
+	switch(testType)
+	{
+	case Normal:
+		{	
+			ReleaseTempSpace(XTX, DataNumTrain);
+			break;
+		}
+	case Increase:
+		{
+			//delete dAn_dT;
+			delete []d;
+			delete []dAn_;
+			delete []An_dT;			
+			ReleaseTempSpace(B, DataNumTrain);
+			break;
+		}
+	}
 }
-void multiplyXY(double **p, double **q, int m, int n, int l, double** ret)
+
+void addXmYm(double **p, double **q, int m, int n, double **ret)
+{
+	int i, j;
+	for (i = 0; i < n; ++i)
+	{
+		for (j = 0; j < m; ++j)
+		{
+			ret [i][j] = p[i][j] + q[i][j];
+		}
+	}
+}
+
+void multiplyXmYm(double **p, double **q, int m, int n, int l, double **ret)
 {
 	int i, j, k;
 	double sum;
@@ -411,14 +503,16 @@ void multiplyXY(double **p, double **q, int m, int n, int l, double** ret)
 		{
 			sum = 0;
 			for(k = 0 ;k < n; k ++)
+			{
 				sum += p[i][k] * q[k][j];
+			}
 
 			ret[i][j] = (fabs(sum)<MIN)? 0: sum;
 		}	
 	}
 }
 
-void multiplyXTY(double **p, double **q, int m, int n, int l, double** ret)
+void multiplyXtYm(double **p, double **q, int m, int n, int l, double **ret)
 {
 	int i, j, k;
 	double sum;
@@ -436,37 +530,61 @@ void multiplyXTY(double **p, double **q, int m, int n, int l, double** ret)
 	}
 }
 
-void multiplyXYv(double **p, double *q, int m, int n, double* ret)
+void multiplyXvYm(double *p, double **q, int m, int n, double *ret)//ym yn
 {
-	int i, k;
-	double sum;
+	int i, j;
 	//multiply
-	for(i = 0;i < m; ++i)
+	for(i = 0;i < n; ++i)
 	{		
-		sum = 0;
-		for(k = 0 ;k < n; k ++)
-			sum += p[i][k] * q[k];
-
-		ret[i] = (fabs(sum)<MIN)? 0: sum;		
+		ret[i] = 0;
+		for(j = 0 ; j < m; ++j)
+		{
+			ret[i] += p[j]*q[j][i];
+		}	
+		if (fabs(ret[i]) < MIN)
+		{
+			ret[i] = 0;
+		}
 	}
 }
 
-void multiplyXTYv(double **p, double *q, int m, int n, double* ret)
+void multiplyXmYv(double **p, double *q, int m, int n, double *ret)
 {
-	int i, k;
-	double sum;
+	int i, j;
 	//multiply
 	for(i = 0;i < m; ++i)
-	{		
-		sum = 0;
-		for(k = 0 ;k < n; k ++)
-			sum += p[k][i] * q[k];
-
-		ret[i] = (fabs(sum)<MIN)? 0: sum;		
+	{
+		ret[i] = 0;
+		for(j = 0 ; j < n; ++j)
+		{
+			ret[i] += p[i][j]*q[j];
+		}	
+		if (fabs(ret[i]) < MIN)
+		{
+			ret[i] = 0;
+		}
 	}
 }
 
-void multiplyXXT(double **p, int m, int n, double** ret)
+void multiplyXtYv(double **p, double *q, int m, int n, double *ret)
+{
+	int i, j;
+	//multiply
+	for(i = 0;i < m; ++i)
+	{
+		ret[i] = 0;
+		for(j = 0 ; j < n; ++j)
+		{
+			ret[i] += p[j][i]*q[j];
+		}	
+		if (fabs(ret[i]) < MIN)
+		{
+			ret[i] = 0;
+		}
+	}
+}
+
+void multiplyXmXt(double **p, int m, int n, double **ret)
 {
 	int i, j, k;
 	double sum;
@@ -477,14 +595,63 @@ void multiplyXXT(double **p, int m, int n, double** ret)
 		{
 			sum = 0;
 			for(k = 0 ;k < n; k ++)
+			{
 				sum += p[i][k] * p[j][k];
+			}
 
 			ret[i][j] = (fabs(sum)<MIN)? 0: sum;
 		}	
 	}
 }
 
-void inverse(double **p, int n, double **q)
+void multiplyXvYv(double *p, double *q, int m, double& ret)
+{
+	int i;
+	ret = 0;
+	for(i = 0; i < m; ++i)
+	{
+		ret += p[i]*q[i];
+	}
+	if (fabs(ret) < MIN)
+	{
+		ret = 0;
+	}
+}
+
+void multiplyXvYv(double *p, double *q, int m, double **ret)
+{
+	int i, j;
+	//multiply
+	for(i = 0; i < m; ++i)
+	{		
+		for(j = 0; j < m; ++j)
+		{
+			ret[i][j] = p[i]*q[j];
+			if (fabs(ret[i][j]) < MIN)
+			{
+				ret[i][j] = 0;
+			}
+		}	
+	}
+}
+
+void multiplyNX(double c, double **p, int m, int n, double **ret)
+{
+	int i, j;
+	for (i = 0; i < m; ++i)
+	{
+		for (j = 0; j < n; ++j)
+		{
+			ret[i][j] = c*p[i][j];
+			if (fabs(ret[i][j]) < MIN)
+			{
+				ret[i][j] = 0;
+			}
+		}
+	}
+}
+
+void inverse_Normal(double **p, int n, double **q)
 {
 	int i, j, k, l, ik;
 	double max, tmpM;
@@ -566,18 +733,54 @@ void inverse(double **p, int n, double **q)
 	tmpMat[0][0] = 1;
 }
 
-void dispMat(double **p, int m, int n)
-{
-	for (int i = 0;i < m; ++i)
+void train_Increase(double* x, int n)
+{	
+	multiplyXmYv(Train_X, x, n, Dimension, d);//d
+	multiplyXvYv(x, x, Dimension, c);	//c
+	c += MIN;
+	//代公式
+	multiplyXvYm(d, XTXInverse, n, n, dAn_);	//dAn_
+	multiplyXmYv(XTXInverse, d, n, n, An_dT);//An_dT
+	multiplyXvYv(d, An_dT, n, dAn_dT);		//dAn_dT
+
+	multiplyXvYv(dAn_, An_dT, n, B);	//init B
+
+	//complete B
+	double sum;
+	int i,j;
+	for(i = 0;i < n; ++i)
 	{
-		for (int j = 0;j < m; ++j)
+		sum = 0;
+		for(j = 0;j < n; ++j)
 		{
-			cout << p[i][j] <<" ";
+			sum += d[j]*XTXInverse[j][i];
 		}
-		cout << endl;
+		B[n][i] = -sum;
+
+		sum = 0;
+		for(j = 0;j < n; ++j)
+		{
+			sum += d[j]*XTXInverse[i][j];
+		}
+		B[i][n] = -sum;
 	}
-	cout << endl;
+	B[n][n] = 1;
+
+	multiplyNX((c - dAn_dT), B, n, n, B);
+	addXmYm(XTXInverse, B, n+1, n+1, XTXInverse);
 }
+
+void inverse_Increase()
+{	
+	multiplyXmXt(Train_X, 1, Dimension, XTXInverse);
+	dispMat(XTXInverse, DataNumTrain, DataNumTrain);
+	XTXInverse[0][0] = 1/(XTXInverse[0][0] + MIN);
+	for(int i = 0;i < DataNumTrain - 1; ++i)
+	{
+		train_Increase(Train_X[i], i + 1);
+	}	
+}
+
 
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -607,8 +810,8 @@ int _tmain(int argc, _TCHAR* argv[])
 			atime=0;
 			for(FileIndx = 1;FileIndx <= 10;++ FileIndx)
 			{
-				string sTest = "D:\\小桌面\\2014.6\\项目\\test\\Result\\";
-				string sTrain = "D:\\小桌面\\2014.6\\项目\\test\\Result\\";
+				string sTest = "Result\\";
+				string sTrain = "Result\\";
 				sTrain += s[h] + "\\StTrainFile";
 				sTest += s[h] + "\\StTestFile";
 				strcpy(TrainFileName, sTrain.c_str());
@@ -627,21 +830,28 @@ int _tmain(int argc, _TCHAR* argv[])
 					dmin = 1e20;//存储测试点与每个类的最小距离
 					for(i = 0;i < LabelNum; ++i)//计算每个类与测试点的距离
 					{	
-						DataNumTrain = LabelCount(Label[i]);//计算Label[i]类的训练对象个数
+						DataNumTrain = LabelCount((int)Label[i]);//计算Label[i]类的训练对象个数
 						VarInit();//局部变量的初始化
-						GenerateDataForTraining(Label[i]);//获得Label[i]类的训练对象		
+						GenerateDataForTraining((int)Label[i]);//获得Label[i]类的训练对象		
 						//求XTX
-						multiplyXXT(Train_X, DataNumTrain, Dimension, XTX);
-						inverse(XTX, DataNumTrain, XTXInverse);
+						if (testType == Normal)
+						{
+							multiplyXmXt(Train_X, DataNumTrain, Dimension, XTX);
+							inverse_Normal(XTX, DataNumTrain, XTXInverse);
+						}
+						else
+						{
+							inverse_Increase();
+						}						
 						//dispMat(XTXInverse, DataNumTrain, DataNumTrain);
-						multiplyXYv(Train_X, Test_X_All[k], DataNumTrain, Dimension, XTY);
-						multiplyXYv(XTXInverse, XTY, DataNumTrain, DataNumTrain, B);
-						multiplyXTYv(Train_X, B, Dimension, DataNumTrain, Y);
+						multiplyXmYv(Train_X, Test_X_All[k], DataNumTrain, Dimension, XTY);
+						multiplyXmYv(XTXInverse, XTY, DataNumTrain, DataNumTrain, Beta);
+						multiplyXtYv(Train_X, Beta, Dimension, DataNumTrain, Y);
 
 						e = Distance(Y, Test_X_All[k], Dimension);//计算e=||y-y'||
 						if(e - dmin < MIN)
 						{
-							Labelmin = Label[i];//记录最近距离类下标
+							Labelmin = (int)Label[i];//记录最近距离类下标
 							dmin = e;
 						}
 						VarRelease();//释放临时空间
@@ -659,132 +869,10 @@ int _tmain(int argc, _TCHAR* argv[])
 				atime+=ptime;
 			}//end FileIndx
 			outfile<<"    "<<average/10<<"    "<<atime/10<<endl;
+			cout << "平均精度 :" << average/10 << endl;
 //		}//end select
 	}
 	outfile.close();
 	return 1;
 }//end main
 
-
-/*
-
-double **p = new double *[3];
-for (int i = 0;i < 3; ++i)
-{
-p[i] = new double[4];
-for (int j = 0;j < 4; ++j)
-{
-p[i][j] = i * j + 1;
-}
-}
-for (int i = 0;i < 3; ++i)
-{
-for (int j = 0;j < 4; ++j)
-{
-cout << p[i][j] << " ";
-}
-cout <<endl;
-}
-
-tmp1 = new double *[3];
-for (int i = 0;i < 3; ++i)
-{
-tmp1[i] = new double[3];
-}
-
-multiplyXXT(p, 3, 4, tmp1);
-for (int i = 0;i < 3; ++i)
-{
-for (int j = 0;j < 3; ++j)
-{
-cout << tmp1[i][j] << " ";
-}
-cout <<endl;
-}
-
-tmp2 = new double *[3];
-for (int i =0;i < 3; ++i)
-{
-tmp2[i] = new double[4];
-}
-multiplyXY(tmp1, p, 3, 3, 4, tmp2);
-for (int i = 0;i < 3; ++i)
-{
-for (int j = 0;j < 4; ++j)
-{
-cout << tmp2[i][j] << " ";
-}
-cout <<endl;
-}
-}*/
-
-/*
-double **A;
-double **B;
-double*d;
-double c
-double *dAn_;
-double *An_dT;
-double dAn_dT
-d = new double[DataNumTrain];
-An_dT = new double[DataNumTrain];
-A = new double*[DataNumTrain];
-B = new double*[DataNumTrain];
-for(int i = 0;i < DataNumTrain; ++i)
-{
-A[i] = new double[DataNumTrain];
-B[i] = new double[DataNumTrain];
-}
-
-int m;
-int n;
-
-void iTrain(double* x)
-{	
-multiplyXYv(Train_X, n, Dim, x, d);
-multiplyXvYv(x, x, DataNumTrain, c);
-//代公式
-multiplyXvY(d, A, n, n, dAn_);
-multiplyXYv(A, d, n, n, An_dT);
-multiplyXvYv(d, An_dT, n, dAn_dT);
-
-multiplyXY(dAn_, An_dT, n, 1, n, B);
-
-//complete B
-double sum;
-int i,j;
-for(i = 0;i < n; ++i)
-{
-sum = 0;
-for(j = 0;j < n; ++j)
-{
-sum += d[j]*A[j][i];
-}
-B[n][i] = -sum;
-
-sum = 0;
-for(j = 0;j < n; ++j)
-{
-sum += d[j]*A[i][j];
-}
-B[i][n] = -sum;
-}
-B[n][n] = 1;
-
-multiplyNX((c - dAn_dT), B);
-add(A, B, n+1, n+1, A);
-}
-
-void train()
-{	
-multiplyXTX(Train_X, 1, DataNumTrain, A);
-A[0][0] = 1/A[0][0];
-m = DataNumTrain;
-n = 1;	
-for(int i = 0;i < DataNumTrain; ++i)
-{
-iTrain(Train_X[i]);
-}	
-}
-
-*/
